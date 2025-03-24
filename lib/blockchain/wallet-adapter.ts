@@ -160,36 +160,70 @@ class WalletAdapterService {
   // Verify the transaction data from QR code
   public verifyTransaction(decodedData: any): boolean {
     try {
+      console.log("Starting transaction verification...");
+
+      // Check if basic structure exists
+      if (!decodedData) {
+        console.error("Verification failed: decodedData is null or undefined");
+        return false;
+      }
+
       const { transaction, authenticator } = decodedData;
 
-      // Validate transaction structure and content
-      if (!transaction || !authenticator) {
+      // Basic structure check
+      if (!transaction) {
+        console.error("Verification failed: missing transaction object");
         return false;
       }
 
-      // Validate sender account address format
+      if (!authenticator) {
+        console.error("Verification failed: missing authenticator");
+        return false;
+      }
+
+      // Validate sender exists
       if (!transaction.sender) {
+        console.error("Verification failed: missing sender address");
         return false;
       }
 
-      // Validate function name for APT transfers
-      if (transaction.payload?.function !== "0x1::aptos_account::transfer") {
+      // Validate transaction has a payload
+      if (!transaction.payload) {
+        console.error("Verification failed: missing transaction payload");
         return false;
       }
 
-      // Validate amount is a positive number
-      const amount = transaction.payload?.arguments?.[1];
-      if (
-        amount === undefined ||
-        isNaN(Number(amount)) ||
-        Number(amount) <= 0
-      ) {
+      // More flexible function validation - allow any valid function format
+      if (!transaction.payload.function) {
+        console.error("Verification failed: missing function in payload");
         return false;
       }
 
+      // We can support multiple transaction types, not just transfers
+      if (transaction.payload.function === "0x1::aptos_account::transfer") {
+        // For transfer transactions, validate recipient and amount
+        const args = transaction.payload.arguments;
+        if (!args || args.length < 2) {
+          console.error(
+            "Verification failed: missing or incomplete arguments for transfer"
+          );
+          return false;
+        }
+
+        // Check that amount is present (but be more flexible with validation)
+        const amount = args[1];
+        if (amount === undefined) {
+          console.error(
+            "Verification failed: missing amount in transfer arguments"
+          );
+          return false;
+        }
+      }
+
+      console.log("Transaction verification passed");
       return true;
     } catch (error) {
-      console.error("Transaction verification failed:", error);
+      console.error("Transaction verification failed with exception:", error);
       return false;
     }
   }
