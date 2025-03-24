@@ -41,9 +41,26 @@ const initializeBot = () => {
         const walletAdapter = WalletAdapterService;
         const decodedData = walletAdapter.decodeTransactionFromQR(qrData);
 
-        // Verify the transaction data
-        if (!walletAdapter.verifyTransaction(decodedData)) {
-          await ctx.reply("❌ Invalid transaction data in QR code.");
+        console.log("Decoded QR data:", JSON.stringify(decodedData, null, 2));
+
+        // Enhanced verification with better error handling
+        try {
+          const isValid = walletAdapter.verifyTransaction(decodedData);
+          if (!isValid) {
+            console.error(
+              "Transaction verification failed for data:",
+              JSON.stringify(decodedData, null, 2)
+            );
+            await ctx.reply(
+              "❌ Transaction verification failed. The QR code contains invalid or malformed transaction data."
+            );
+            return;
+          }
+        } catch (verifyError) {
+          console.error("Error during transaction verification:", verifyError);
+          await ctx.reply(
+            "❌ Error verifying transaction data. Please ensure you're using a valid transaction QR code."
+          );
           return;
         }
 
