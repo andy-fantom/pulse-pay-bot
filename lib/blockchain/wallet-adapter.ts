@@ -63,6 +63,10 @@ class WalletAdapterService {
     amount: number
   ) {
     try {
+      console.log(
+        `Creating transfer transaction: from ${sender} to ${recipient} for ${amount} octas`
+      );
+
       // Create a transaction that can be signed locally by the wallet
       const transaction = await this.aptos.transaction.build.simple({
         sender: AccountAddress.from(sender),
@@ -72,6 +76,7 @@ class WalletAdapterService {
         },
       });
 
+      console.log("Transaction built successfully");
       return transaction;
     } catch (error) {
       console.error("Failed to create transaction:", error);
@@ -85,22 +90,38 @@ class WalletAdapterService {
     authenticator: AccountAuthenticator
   ): string {
     try {
-      // Custom replacer function to handle BigInt values during serialization
-      const replacer = (key: string, value: unknown) => {
-        // Convert BigInt to string
-        if (typeof value === "bigint") {
-          return value.toString();
-        }
-        return value;
-      };
+      // Convert BigInt values to strings for serialization
+      const processedTransaction = JSON.parse(
+        JSON.stringify(transaction, (key, value) =>
+          typeof value === "bigint" ? value.toString() : value
+        )
+      );
+
+      // Process authenticator for serialization
+      const processedAuthenticator = JSON.parse(
+        JSON.stringify(authenticator, (key, value) => {
+          if (typeof value === "bigint") {
+            return value.toString();
+          }
+          // Handle Uint8Array or ArrayBuffer
+          if (
+            value &&
+            (value.buffer instanceof ArrayBuffer || value instanceof Uint8Array)
+          ) {
+            return Array.from(value);
+          }
+          return value;
+        })
+      );
 
       const payload = {
-        transaction,
-        authenticator,
+        transaction: processedTransaction,
+        authenticator: processedAuthenticator,
       };
 
       // Convert to JSON string
-      const jsonString = JSON.stringify(payload, replacer);
+      const jsonString = JSON.stringify(payload);
+      console.log("Transaction payload prepared for QR code");
 
       // Compress using pako
       const compressed = pako.deflate(jsonString);
@@ -116,6 +137,8 @@ class WalletAdapterService {
   // Decode transaction data from QR code with decompression
   public decodeTransactionFromQR(qrData: string) {
     try {
+      console.log("Starting QR data decoding...");
+
       // Convert from base64 to buffer
       const compressed = Buffer.from(qrData, "base64");
 
@@ -128,7 +151,21 @@ class WalletAdapterService {
       // Parse JSON
       const parsed = JSON.parse(jsonString);
 
-      // Revive any BigInt from strings if needed
+      console.log("QR data decoded successfully");
+
+      // Process any string representations of arrays back to proper arrays
+      const processAuthenticator = (auth: any) => {
+        if (auth && auth.signature && Array.isArray(auth.signature)) {
+          auth.signature = new Uint8Array(auth.signature);
+        }
+        return auth;
+      };
+
+      // Process authenticator
+      if (parsed.authenticator) {
+        parsed.authenticator = processAuthenticator(parsed.authenticator);
+      }
+
       return parsed;
     } catch (error) {
       console.error("Failed to decode QR data:", error);
@@ -141,16 +178,60 @@ class WalletAdapterService {
     decodedData: any
   ): Promise<TransactionResponse> {
     try {
+      console.log("Starting transaction submission...");
       const { transaction, authenticator } = decodedData;
 
+      // Convert string numbers back to BigInt if needed
+      if (typeof transaction.gasUnitPrice === "string") {
+        transaction.gasUnitPrice = BigInt(transaction.gasUnitPrice);
+      }
+
+      if (typeof transaction.maxGasAmount === "string") {
+        transaction.maxGasAmount = BigInt(transaction.maxGasAmount);
+      }
+
+      if (typeof transaction.expirationTimestampSecs === "string") {
+        transaction.expirationTimestampSecs = BigInt(
+          transaction.expirationTimestampSecs
+        );
+      }
+
+      // Process the sender to ensure it's an AccountAddress
+      if (typeof transaction.sender === "string") {
+        transaction.sender = AccountAddress.from(transaction.sender);
+      }
+
+      // Ensure functionArguments are properly formatted for submission
+      if (transaction.payload && transaction.payload.functionArguments) {
+        transaction.payload.functionArguments =
+          transaction.payload.functionArguments.map((arg: any) => {
+            // Handle address conversion
+            if (typeof arg === "string" && arg.startsWith("0x")) {
+              return AccountAddress.from(arg);
+            }
+            // Handle numeric conversions
+            if (typeof arg === "string" && !isNaN(Number(arg))) {
+              return BigInt(arg);
+            }
+            return arg;
+          });
+      }
+
+      console.log("Submitting transaction...");
       const submittedTransaction = await this.aptos.transaction.submit.simple({
         transaction,
         senderAuthenticator: authenticator,
       });
 
-      return await this.aptos.waitForTransaction({
+      console.log("Transaction submitted, hash:", submittedTransaction.hash);
+      console.log("Waiting for transaction confirmation...");
+
+      const result = await this.aptos.waitForTransaction({
         transactionHash: submittedTransaction.hash,
       });
+
+      console.log("Transaction confirmed:", result);
+      return result;
     } catch (error) {
       console.error("Failed to submit transaction:", error);
       throw error;
@@ -202,7 +283,9 @@ class WalletAdapterService {
       // We can support multiple transaction types, not just transfers
       if (transaction.payload.function === "0x1::aptos_account::transfer") {
         // For transfer transactions, validate recipient and amount
-        const args = transaction.payload.arguments;
+        const args =
+          transaction.payload.functionArguments ||
+          transaction.payload.arguments;
         if (!args || args.length < 2) {
           console.error(
             "Verification failed: missing or incomplete arguments for transfer"
@@ -239,13 +322,18 @@ class WalletAdapterService {
 
       // For APT transfers
       if (transaction.payload.function === "0x1::aptos_account::transfer") {
-        const recipient = transaction.payload.arguments[0];
-        const amount = transaction.payload.arguments[1];
+        const args =
+          transaction.payload.functionArguments ||
+          transaction.payload.arguments;
+        const recipient = args[0];
+        const amount = args[1];
 
         return {
           type: "transfer",
-          sender: transaction.sender.toString(),
-          recipient: recipient.toString(),
+          sender: transaction.sender.toString
+            ? transaction.sender.toString()
+            : transaction.sender,
+          recipient: recipient.toString ? recipient.toString() : recipient,
           amount: Number(amount) / 100000000, // Convert from Octas to APT
           gasUnitPrice: transaction.gasUnitPrice?.toString() || "0",
           maxGasAmount: transaction.maxGasAmount?.toString() || "0",
@@ -255,9 +343,14 @@ class WalletAdapterService {
       // Generic transaction details fallback
       return {
         type: "transaction",
-        sender: transaction.sender.toString(),
+        sender: transaction.sender.toString
+          ? transaction.sender.toString()
+          : transaction.sender,
         function: transaction.payload.function,
-        args: transaction.payload.arguments || [],
+        args:
+          transaction.payload.functionArguments ||
+          transaction.payload.arguments ||
+          [],
         gasUnitPrice: transaction.gasUnitPrice?.toString() || "0",
         maxGasAmount: transaction.maxGasAmount?.toString() || "0",
       };

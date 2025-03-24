@@ -42,6 +42,13 @@ export default function WalletPage() {
 
     const aptosConfig = new AptosConfig({ network });
     setAptos(new Aptos(aptosConfig));
+
+    // Initialize wallet adapter service
+    const init = async () => {
+      await WalletAdapterService.initialize();
+    };
+
+    init();
   }, []);
 
   const handleCreateTransaction = async () => {
@@ -80,6 +87,10 @@ export default function WalletPage() {
       const walletService = WalletAdapterService;
       const amountInOctas = parseFloat(amount) * 100000000; // Convert APT to Octas
 
+      console.log(
+        `Creating transaction: sending ${amountInOctas} octas to ${recipientAddress.toString()}`
+      );
+
       const transaction = await walletService.createTransferTransaction(
         account.address.toString(),
         recipientAddress.toString(),
@@ -90,17 +101,27 @@ export default function WalletPage() {
         throw new Error("Failed to create transaction");
       }
 
+      console.log("Transaction created, requesting signature...");
+
       // Sign the transaction (without submitting)
-      const { authenticator, rawTransaction } = await signTransaction({
+      const signResult = await signTransaction({
         transactionOrPayload: transaction,
       });
-      console.log("Transaction signed successfully:", rawTransaction);
+
+      if (!signResult || !signResult.authenticator) {
+        throw new Error("Failed to sign transaction or missing authenticator");
+      }
+
+      const { authenticator } = signResult;
+      console.log("Transaction signed successfully");
 
       // Encode the transaction and signature for QR code
       const qrData = walletService.encodeTransactionForQR(
         transaction,
         authenticator
       );
+
+      console.log("Transaction encoded for QR code");
 
       // Extract transaction details for display
       setTransactionDetails({
@@ -112,6 +133,7 @@ export default function WalletPage() {
 
       // Generate QR code
       const qrImageUrl = await qrcode.toDataURL(qrData, {
+        errorCorrectionLevel: "M",
         margin: 1,
         width: 250,
         color: {
@@ -123,15 +145,25 @@ export default function WalletPage() {
       setQrCodeUrl(qrImageUrl);
       setTxCreated(true);
       toast.success("Transaction signed successfully! QR code generated.");
+
+      // Log QR data size for debugging
+      console.log(`QR data size: ${qrData.length} characters`);
+
+      // Verify the generated QR code can be decoded
+      try {
+        const decodedData = walletService.decodeTransactionFromQR(qrData);
+        const isValid = walletService.verifyTransaction(decodedData);
+        console.log("QR verification test:", isValid ? "passed" : "failed");
+      } catch (e) {
+        console.warn("QR verification test failed:", e);
+      }
     } catch (error) {
       console.error("Transaction creation failed:", error);
-      toast.error(`Failed to create transaction`);
+      toast.error(`Failed to create transaction: "Unknown error"}`);
     } finally {
       setIsCreatingTx(false);
     }
   };
-
-  console.log(wallet, aptos, connected, account);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">

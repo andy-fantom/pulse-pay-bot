@@ -74,6 +74,9 @@ const initializeBot = () => {
           return;
         }
 
+        // Create a unique identifier for this transaction
+        const txId = Buffer.from(qrData).toString("base64");
+
         if (txDetails.type === "transfer") {
           await ctx.reply(
             `📋 Transaction Details:\n\n` +
@@ -99,9 +102,7 @@ const initializeBot = () => {
                   [
                     {
                       text: "✅ Approve & Broadcast",
-                      callback_data: `broadcast_tx:${Buffer.from(
-                        qrData
-                      ).toString("base64")}`,
+                      callback_data: `broadcast_tx:${txId}`,
                     },
                     { text: "❌ Cancel", callback_data: "cancel_tx" },
                   ],
@@ -128,9 +129,7 @@ const initializeBot = () => {
                   [
                     {
                       text: "✅ Approve & Broadcast",
-                      callback_data: `broadcast_tx:${Buffer.from(
-                        qrData
-                      ).toString("base64")}`,
+                      callback_data: `broadcast_tx:${txId}`,
                     },
                     { text: "❌ Cancel", callback_data: "cancel_tx" },
                   ],
@@ -141,7 +140,7 @@ const initializeBot = () => {
         }
       } catch (error) {
         console.error("Error processing QR code data:", error);
-        await ctx.reply(`❌ Error processing QR code`);
+        await ctx.reply(`❌ Error processing QR code: "Unknown error"`);
       }
     } catch (error) {
       console.error("Error handling photo:", error);
@@ -154,7 +153,14 @@ const initializeBot = () => {
   // Handle callback queries for QR code transaction approvals
   bot.on("callback_query", async (ctx) => {
     try {
-      const callbackData = ctx.callbackQuery.id;
+      // Access callback data with proper type checking
+      const callbackData =
+        "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null;
+
+      if (!callbackData) {
+        await ctx.answerCbQuery("Invalid callback data");
+        return;
+      }
 
       if (callbackData.startsWith("broadcast_tx:")) {
         // Extract the QR code data from the callback
@@ -171,9 +177,10 @@ const initializeBot = () => {
           await ctx.editMessageText(
             `✅ Transaction submitted successfully!\n\n` +
               `Transaction hash: ${result.hash}\n` +
-              `Status: ${result.success}\n` +
-              `Details: ${result.details}\n\n` +
-              `Check explorer: https://explorer.aptoslabs.com/txn/${result.hash}?network=testnet`
+              `Status: Success\n\n` +
+              `Check explorer: https://explorer.aptoslabs.com/txn/${
+                result.hash
+              }?network=${process.env.NEXT_PUBLIC_APTOS_NETWORK || "testnet"}`
           );
         } else {
           await ctx.editMessageText(
@@ -192,7 +199,7 @@ const initializeBot = () => {
       await ctx.answerCbQuery("An error occurred. Please try again.");
       try {
         await ctx.editMessageText(
-          "An error occurred while processing your request. Please try again."
+          `An error occurred while processing your request Please try again.`
         );
       } catch (e) {
         // Message might have been deleted or cannot be edited

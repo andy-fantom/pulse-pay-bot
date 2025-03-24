@@ -1,5 +1,5 @@
 // lib/telegram/qr-processor.ts
-import { Jimp } from "jimp";
+import { Jimp } from "jimp"; // Fixed import
 import jsQR from "jsqr";
 import qrcode from "qrcode";
 import fetch from "node-fetch";
@@ -43,6 +43,12 @@ export class QRCodeProcessor {
     try {
       // Fetch the image
       const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch image: ${response.status} ${response.statusText}`
+        );
+      }
+
       const buffer = await response.arrayBuffer();
 
       // Process the image with Jimp
@@ -67,9 +73,11 @@ export class QRCodeProcessor {
       });
 
       if (qrCode) {
+        console.log("QR code decoded successfully");
         return qrCode.data;
       }
 
+      console.log("No QR code found in the image");
       return null;
     } catch (error) {
       console.error("Error decoding QR code:", error);
@@ -84,10 +92,15 @@ export class QRCodeProcessor {
    */
   public static async processTransactionQR(qrData: string) {
     try {
+      console.log("Processing QR transaction data");
       const walletAdapter = WalletAdapterService;
 
       // Decode transaction data from QR
       const decodedData = walletAdapter.decodeTransactionFromQR(qrData);
+      console.log(
+        "Decoded transaction data:",
+        JSON.stringify(decodedData, null, 2)
+      );
 
       // Verify transaction
       if (!walletAdapter.verifyTransaction(decodedData)) {
@@ -100,14 +113,11 @@ export class QRCodeProcessor {
 
       // Submit transaction
       const txResult = await walletAdapter.submitTransaction(decodedData);
+      console.log("Transaction submitted:", txResult);
 
       return {
         success: true,
         hash: txResult.hash,
-        // Check the transaction status
-        // status: txResult.success ? "Success" : "Failed",
-        // // Use any available version property
-        // version: txResult.version || txResult.sequence_number || "Unknown",
         details: details,
       };
     } catch (error) {
