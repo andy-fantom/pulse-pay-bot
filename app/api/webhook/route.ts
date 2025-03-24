@@ -184,6 +184,31 @@ const initializeBot = () => {
     }
   });
 
+  // Add start command
+  bot.command("start", async (ctx) => {
+    await ctx.reply(
+      `👋 Welcome to PulsePay Bot!\n\n` +
+        `I help you broadcast cryptocurrency transactions using QR codes. This allows you to prepare and sign transactions on one device and broadcast them from another.\n\n` +
+        `Use /help to see all available commands and learn how to use this bot.`
+    );
+  });
+
+  // Add help command
+  bot.command("help", async (ctx) => {
+    await ctx.reply(
+      `📚 PulsePay Bot Help:\n\n` +
+        `Available commands:\n` +
+        `/start - Start the bot and see welcome message\n` +
+        `/help - Show this help message\n` +
+        `/qrcode - Learn how to use QR code transactions\n\n` +
+        `How to use this bot:\n` +
+        `1. Create a transaction on our web app\n` +
+        `2. Send the generated QR code to this bot\n` +
+        `3. Review and approve the transaction details\n` +
+        `4. The bot will broadcast your transaction to the blockchain`
+    );
+  });
+
   // Add QR code specific commands
   bot.command("qrcode", async (ctx) => {
     await ctx.reply(
