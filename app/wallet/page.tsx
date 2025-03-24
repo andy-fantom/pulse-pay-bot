@@ -248,7 +248,7 @@ export default function WalletPage() {
                     </div>
                   </div>
 
-                  <p className="mt-4 text-center text-sm text-gray-600">
+                  <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-300">
                     Send this QR code to the Telegram bot to broadcast your
                     transaction
                   </p>
@@ -258,7 +258,7 @@ export default function WalletPage() {
                       href="https://t.me/your_bot_username"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                      className="inline-flex items-center bg-blue-500 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-800 text-white font-bold py-2 px-4 rounded"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
