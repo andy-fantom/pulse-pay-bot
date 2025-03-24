@@ -166,19 +166,19 @@ export default function WalletPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
+    <main className="min-h-screen py-12">
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto">
           <h1 className="text-3xl font-bold text-center mb-6">
             Aptos Wallet for Telegram
           </h1>
 
-          <p className="text-center text-gray-600 mb-8">
+          <p className="text-center mb-8">
             Connect your Aptos wallet, sign transactions, and generate QR codes
             to use with the Telegram bot.
           </p>
 
-          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="rounded-xl shadow-md overflow-hidden">
             <div className="p-6">
               <div className="flex justify-center mb-6">
                 <AuthWalletConnector />
@@ -186,34 +186,34 @@ export default function WalletPage() {
 
               {connected && (
                 <div className="mt-6">
-                  <h2 className="text-xl font-semibold mb-4">
+                  <h2 className="text-xl font-semibold mb-4 dark:text-white">
                     Create Transaction
                   </h2>
 
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                         Recipient Address
                       </label>
                       <input
                         type="text"
                         value={recipient}
                         onChange={(e) => setRecipient(e.target.value)}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-400"
                         placeholder="0x..."
                         disabled={isCreatingTx}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                         Amount (APT)
                       </label>
                       <input
                         type="number"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-400"
                         placeholder="0.0"
                         min="0"
                         step="0.1"
@@ -308,7 +308,7 @@ export default function WalletPage() {
             </div>
           </div>
 
-          <div className="mt-12 bg-blue-50 rounded-lg p-6">
+          <div className="mt-12 rounded-lg p-6">
             <h2 className="text-xl font-semibold mb-4">How It Works</h2>
             <ol className="list-decimal pl-6 space-y-3">
               <li>Connect your Aptos wallet using the button above</li>
@@ -331,7 +331,7 @@ export default function WalletPage() {
             </ol>
           </div>
 
-          <div className="mt-8 text-center text-sm text-gray-500">
+          <div className="mt-8 text-center text-sm text-gray-600 dark:text-gray-300">
             <p>
               All transactions are processed securely. Your private keys never
               leave your device.
